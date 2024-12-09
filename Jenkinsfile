@@ -9,18 +9,21 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build('fast-api-image')
+                    // Ensure the docker command is available
+                    def myImage = docker.build("my-image-name")
                 }
             }
         }
         stage('Push to DockerHub') {
             steps {
                 script {
-                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-credentials') {
-                        docker.image('fast-api-image').push('latest')
+                    docker.withRegistry('https://registry.hub.docker.com', 'dockerhub-credentials') {
+                        myImage.push('latest')
                     }
                 }
             }
         }
     }
 }
+
+
