@@ -1,0 +1,50 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_HUB_USERNAME = 'mjid6'
+        DOCKER_HUB_PASSWORD = 'Yarbbi nj7@'
+        IMAGE_NAME = 'fastapi-app'
+        DOCKERFILE_PATH = '.'
+    }
+
+    stages {
+        stage('Clone Repository') {
+            steps {
+                git branch: 'master', url: 'https://github.com/elidrissi-abdelmajid/fast_api_project.git'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    docker.build("${DOCKER_HUB_USERNAME}/${IMAGE_NAME}:latest", "-f ${DOCKERFILE_PATH}/Dockerfile .")
+                }
+            }
+        }
+
+        stage('Login to Docker Hub') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                        sh "echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin"
+                    }
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    docker.push("${DOCKER_HUB_USERNAME}/${IMAGE_NAME}:latest")
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()  // Clean workspace after build
+        }
+    }
+}
