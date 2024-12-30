@@ -3,12 +3,13 @@ pipeline {
     environment {
         DOCKER_IMAGE = "mjid6/fast_api_image"
         DOCKER_TAG = "latest"
-        REGISTRY_URL = "https://index.docker.io/v1/"
+        DOCKER_PASS ="dckr_pat_knjjAjvRy6Qsy1arF36wVnB2Wug"
+        KUBERNETES_CONFIG="k8s-deployment.yaml"
     }
     stages {
         stage('Clone Repository') {
             steps {
-                // Clone the GitHub repository
+                //
                 git branch: 'master', url: 'https://github.com/elidrissi-abdelmajid/fast_api_project.git'
             }
         }
@@ -20,31 +21,58 @@ pipeline {
                 }
             }
         }
-        stage('Run Docker Container') {
+        stage('login to docker hub ') {
             steps {
                 script {
-                    // Run the Docker container to test if it works
-                    bat "docker run -d -p 8000:8000 ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                    // Build the Docker image
+                    bat "docker login -u mjid6 -p ${DOCKER_PASS}"
+                }
+            }
+        }
+        stage("test the docker image"){
+            steps{
+                script{
+                    bat "docker images"
                 }
             }
         }
         stage('Push Docker Image to Registry') {
             steps {
                 script {
-                    // Log in to Docker Hub (Ensure you have credentials set up in Jenkins)
-                    docker.withRegistry('', 'dockerhub-credentials') {
-                        // Push the Docker image to Docker Hub
                         bat "docker push ${DOCKER_IMAGE}:${DOCKER_TAG}"
-                    }
+                    
                 }
             }
         }
-    }
-    post {
-        always {
-            // Clean up any containers or images after the job is done
-            bat "docker ps -a -q | xargs docker rm -f" // Remove all containers
-            bat "docker images -q | xargs docker rmi -f" // Remove all images
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    // Apply the Kubernetes configuration file
+                    
+                    bat "where kubectl "
+                    bat "kubectl apply -f ${KUBERNETES_CONFIG} --validate=false --kubeconfig=C:\\Users\\USER\\.kube\\config"
+                    bat "kubectl  get deployment --kubeconfig=C:\\Users\\USER\\.kube\\config"
+                    // Optional: Print out the status of the deployment
+                    bat "kubectl get services --kubeconfig=C:\\Users\\USER\\.kube\\config"
+                    
+                }
+            }
         }
+        stage('Verify Deployment') {
+            steps {
+                script {
+                    // Wait for the deployment to be ready
+                    bat "kubectl rollout status deployment/fast-api-deployment --kubeconfig=C:\\Users\\USER\\.kube\\config"
+        
+                    // Get the status of the services
+                    bat "kubectl get svc --kubeconfig=C:\\Users\\USER\\.kube\\config"
+        
+                    // Optionally, you can use port-forward to test locally or check the logs for errors
+                    bat "kubectl port-forward service/fast-api-service 8080:80 --kubeconfig=C:\\Users\\USER\\.kube\\config &"
+                    bat "kubectl logs -l app=fast-api --kubeconfig=C:\\Users\\USER\\.kube\\config"
+                }
+            }
+        }     
     }
+
 }
